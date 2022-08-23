@@ -1,41 +1,162 @@
 const socket = io();
 
 async function renderItems(items, logStatus) {
+    /* plantilla */
     const plantillaResponse = await fetch("./ejs/clientMain.ejs");
     const plantilla = await plantillaResponse.text();
     const html = ejs.render(plantilla, { productos: items.productos, mensajes: items.mensajes, user: logStatus.user || null });
     document.getElementById('root').innerHTML = html;
 
     if (logStatus.status === 401) {
+        /* login */
         const formLogin = document.querySelector(".login__form");
 
         formLogin.addEventListener("submit", (e) => {
             e.preventDefault();
-            const nombre = document.querySelector(".login__input").value;
+            const nombre = document.querySelector(".login__inputEmail").value;
+            const password = document.querySelector(".login__inputPassword").value
+            const obj = {
+                username: true,
+                email: nombre,
+                password: password
+            }
 
-            fetch(`/login?username=${nombre}`).then(res => {
+            let errorTimeout = 0;
+
+            fetch("/login", {
+                method: "POST",
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(obj),
+                credentials: 'include'
+            }).then(res => {
                 return res.json()
             }).then(res => {
                 if (res.status === "ok") {
-                    window.location.reload();
+                    window.location.href = "/";
                 } else {
-                    console.log("error logging in")
-                }
+                    if (res.error) {
+                        clearTimeout(errorTimeout);
+                        const errorDiv = document.querySelector(".login__error");
+                        errorDiv.textContent = `Error: ${res.message}`
+                        errorDiv.classList.add("is-active");
 
+                        errorTimeout = setTimeout(() => {
+                            errorDiv.classList.remove("is-active");
+                            errorDiv.innerHTML = "&nbsp;";
+                        }, 2000)
+                    }
+                }
+            })
+        })
+
+        /* register */
+        const registerModal = document.querySelector(".register__modal")
+        const registerModalClose = document.querySelector(".register__modal__close")
+        const registerButton = document.querySelector(".register__btn")
+        const registerForm = document.querySelector(".register__modal__form")
+
+        const userReg = document.querySelector("#userReg")
+        const emailReg = document.querySelector("#emailReg")
+        const passwordReg = document.querySelector("#passwordReg")
+
+        registerButton.addEventListener("click", () => {
+            registerModal.showModal();
+
+            const modalCloseClick = (e) => { if (e.target === registerModal) { window.removeEventListener("mousedown", modalCloseClick); registerModal.close(); userReg.value = ""; emailReg.value = ""; passwordReg.value = "" } };
+            window.addEventListener("mousedown", modalCloseClick);
+
+            registerModalClose.addEventListener("click", () => { window.removeEventListener("click", modalCloseClick); registerModal.close() })
+        })
+
+
+        registerForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+
+            const obj = {
+                username: userReg.value,
+                email: emailReg.value,
+                password: passwordReg.value
+            }
+
+            let errorTimeout = 0;
+            let successTimeout = 0;
+
+            fetch("/register", {
+                method: "POST",
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(obj)
+            }).then((data) => data.json()).then(data => {
+                if (data.status === "ok") {
+                    clearTimeout(successTimeout)
+                    const successDiv = document.querySelector(".register__success")
+                    registerForm.style.display = "none";
+                    successDiv.classList.add("is-active");
+
+                    successDiv.innerHTML = `
+                    <p>Registrado Correctamente</p>
+                    <p>User: ${obj.username}</p>
+                    <p>E-Mail: ${obj.email}</p>
+                    `
+
+                    successTimeout = setTimeout(() => {
+                        registerForm.style.display = "flex";
+                        successDiv.classList.remove("is-active");
+                        registerModal.close();
+                        userReg.value = "";
+                        emailReg.value = "";
+                        passwordReg.value = "";
+                    }, 4000)
+                } else {
+                    clearTimeout(errorTimeout);
+                    const errorDiv = document.querySelector(".register__error");
+                    errorDiv.textContent = `Error: ${data.message}`
+                    errorDiv.classList.add("is-active");
+
+                    errorTimeout = setTimeout(() => {
+                        errorDiv.classList.remove("is-active");
+                        errorDiv.innerHTML = "&nbsp;";
+                    }, 2000)
+                }
             })
         })
 
         return;
     }
 
+    /* info */
+    const infoOpen = document.querySelector(".info__modal__open");
+    const infoModal = document.querySelector(".info__modal");
+    const infoClose = document.querySelector(".info__modal__close");
+
+    infoOpen.addEventListener("click", () => {
+        infoModal.showModal()
+
+        const modalCloseClick = (e) => { if (e.target === infoModal) { window.removeEventListener("mousedown", modalCloseClick); infoModal.close()} };
+        window.addEventListener("mousedown", modalCloseClick);
+
+        infoClose.addEventListener("click", () => {
+            infoModal.close();
+            window.removeEventListener("mousedown", modalCloseClick);
+        })
+    })
+
+    /* login salute */
     const salute = document.querySelector(".header__salute");
     salute.style.visibility = "visible";
-    salute.innerHTML = `Bievenido, ${logStatus.user}!`
+    salute.innerHTML = `Bievenido, ${logStatus.user.email}!`
 
     const loginSaluteTimeout = setTimeout(() => {
         salute.innerHTML = ``;
         salute.style.visibility = "hidden";
     }, 2000);
+
+    /* logout */
     const logout = document.querySelector(".logout");
     logout.addEventListener("click", (e) => {
         e.preventDefault();
@@ -45,16 +166,22 @@ async function renderItems(items, logStatus) {
             if (res.status === "ok") {
                 clearTimeout(loginSaluteTimeout);
                 salute.style.visibility = "visible";
-                salute.innerHTML = `Hasta luego, ${res.user}!`
+                salute.innerHTML = `Hasta luego, ${res.user.email}!`
 
                 setTimeout(() => {
-                    window.location.reload();
+                    window.location.href = "/";
                 }, 2000);
             } else {
                 console.log("error logging out")
             }
         })
     })
+
+    /* datos user */
+    const datosOpen = document.querySelector(".datos__modal__open")
+    const datosClose = document.querySelector(".datos__modal__close")
+    const datosModal = document.querySelector(".datos__modal")
+
 
     /* productos */
     const form = document.querySelector(".formulario__form");
@@ -67,7 +194,7 @@ async function renderItems(items, logStatus) {
             const logStatus = await logged.json()
 
             if (logStatus.status === 401) {
-                window.location.reload();
+                window.location.href = "/";
                 return
             }
 
@@ -103,7 +230,7 @@ async function renderItems(items, logStatus) {
             const logStatus = await logged.json()
 
             if (logStatus.status === 401) {
-                window.location.reload();
+                window.location.href = "/";
                 return
             }
 
@@ -113,7 +240,7 @@ async function renderItems(items, logStatus) {
 
         const mensajeEnvio = {
             author: {
-                id: chatNombre.value,
+                email: chatNombre.value,
                 nombre: /* nombre || */ "nombreDefault",
                 apellido: /* apellido || */ "apellidoDefault",
                 edad: /* edad || */ 99,
@@ -167,7 +294,26 @@ function renderProducto(item) {
 
 function renderMensaje(mensajeEnvio) {
     const mensajesContainer = document.querySelector(".chat__container__mensajes");
-    mensajesContainer.innerHTML += `<div><span class="chat__container__mensajes__nombre">${mensajeEnvio.author.id}</span><span class="chat__container__mensajes__fecha"> ${new Date(mensajeEnvio.createdAt).toLocaleString()}: </span><span class="chat__container__mensajes__mensaje">${mensajeEnvio.text}</span></div>`;
+
+    const mensajeContainer = document.createElement("div");
+
+    const nombre = document.createElement("span");
+    nombre.textContent = mensajeEnvio.author.email + " ";
+    nombre.classList.add("chat__container__mensajes__nombre")
+
+    const fecha = document.createElement("span");
+    fecha.textContent = `${new Date(mensajeEnvio.createdAt).toLocaleString()}: `;
+    fecha.classList.add("chat__container__mensajes__fecha")
+
+    const mensaje = document.createElement("span");
+    mensaje.classList.add("chat__container__mensajes__mensaje");
+    mensaje.textContent = mensajeEnvio.text;
+
+    mensajeContainer.appendChild(nombre);
+    mensajeContainer.appendChild(fecha);
+    mensajeContainer.appendChild(mensaje);
+
+    mensajesContainer.appendChild(mensajeContainer);
 
     mensajesContainer.scroll({ top: mensajesContainer.scrollHeight, behavior: "smooth" })
 }
@@ -239,6 +385,7 @@ socket.on("server:items-test", async items => {
     items.mensajes = mensajesDenormalizados
     items.optimization = porcentajeOptimizacion;
 
+
     /* fetch status a la session */
     try {
         const logged = await fetch("/logged")
@@ -270,7 +417,3 @@ socket.on("server:producto", producto => {
 socket.on("server:mensaje", mensajeEnvio => {
     renderMensaje(mensajeEnvio)
 })
-
-
-
-

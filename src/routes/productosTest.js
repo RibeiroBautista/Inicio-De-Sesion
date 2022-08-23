@@ -1,9 +1,10 @@
 const express = require("express");
-const faker = require("@faker-js/faker").faker;
+const faker = require("@faker-js/faker").faker
 
 const router = express.Router();
-faker.locale = "es";
+faker.locale = "es"
 
+/* ruteo */
 router.route("/").get((req, res)=>{
     let productos = [];
 
@@ -12,11 +13,11 @@ router.route("/").get((req, res)=>{
         producto.title = faker.commerce.productName();
         producto.imgUrl = faker.image.image();
         producto.price = faker.commerce.price();
-        productos.push(producto);
-    };
+        productos.push(producto)
+    }
 
     res.json(productos);
-});
+})
 
 
 module.exports = {router};

@@ -1,5 +1,4 @@
-
-const database = require('../database').mysqlConnection;
+const database = require('../database').mysqlConnection
 
 const createProductsTable = async () => {
     try{
@@ -8,11 +7,11 @@ const createProductsTable = async () => {
             productTable.string("title", 50).notNullable();
             productTable.string("imgUrl", 500).notNullable();
             productTable.integer('price').notNullable();
-        });
-        console.log("product table created");
+        })
+        console.log("product table created")
     } catch(err){
         console.log("error: ", err);
-    };
-};
+    }
+}
 
 module.exports = createProductsTable;
